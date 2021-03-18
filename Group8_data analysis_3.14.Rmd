@@ -1,0 +1,243 @@
+---
+title: "Group 8"
+author: "Yilin Chen"
+date: "`r format(Sys.Date(), format='%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=F)
+setwd("C:/Users/evely/Desktop/UW PhD/02 BIOST 537 Survival Analysis/Hwk/Group 8")
+library(tinytex)
+library(flexsurv)
+library(survival)
+library(ComparisonSurv)
+library(dplyr)
+library(pander)
+library(sjPlot)
+library(msm)
+library(survMisc)
+bmt<-read.csv("bmt-2.csv")
+```
+
+## Q3
+Are any of the measured baseline factors associated with differences in disease-free survival?
+
+```{r Q3, warning=F}
+# glimpse
+glimpse(bmt)
+
+# time until relapse or death
+## by disease group
+s.bmt<-survfit(Surv(tdfs,deltadfs)~as.factor(disgroup),data=bmt)
+plot(s.bmt)
+## by fab
+s.bmt<-survfit(Surv(tdfs,deltadfs)~fab,data=bmt)
+plot(s.bmt)
+
+# time until death
+## by disease group
+s.bmt<-survfit(Surv(ts,deltas)~as.factor(disgroup),data=bmt)
+plot(s.bmt)
+## by fab
+s.bmt<-survfit(Surv(ts,deltas)~fab,data=bmt)
+plot(s.bmt)
+
+# baseline factors and differences in DFS
+## patient age
+coxph(Surv(tdfs,deltadfs)~age,data=bmt) # 0.338
+## patient gender
+coxph(Surv(tdfs,deltadfs)~male,data=bmt) # 0.301
+## donor age
+coxph(Surv(tdfs,deltadfs)~donorage,data=bmt) # 0.252
+## donor gender
+coxph(Surv(tdfs,deltadfs)~donormale,data=bmt) # 0.97
+## patient CMV
+coxph(Surv(tdfs,deltadfs)~cmv,data=bmt) # 0.482
+## donor CMV
+coxph(Surv(tdfs,deltadfs)~donorcmv,data=bmt) # 0.836
+## the wait time from diagnosis to transplantation
+coxph(Surv(tdfs,deltadfs)~waittime,data=bmt) # 0.791
+## disease group
+coxph(Surv(tdfs,deltadfs)~as.factor(disgroup),data=bmt) # 0.0457, 0.1516
+## FAB classification 
+coxph(Surv(tdfs,deltadfs)~fab,data=bmt) # 0.00427
+## prophylactic use of methotrexate
+coxph(Surv(tdfs,deltadfs)~mtx,data=bmt) # 0.0944
+## hospital center
+coxph(Surv(tdfs,deltadfs)~as.factor(hospital),data=bmt) 
+```
+
+**Findings**
+
+Disease group and FAB classification are significantly associated with negative outcome.
+
+
+## Q4
+It is generally thought that a GVHD has an anti-leukemic effect. Based on the available data, is occurrence of aGVHD after transplantation associated with improved disease-free survival? Is it associated with a decreased risk of relapse? In view of this, do you consider aGVHD as an important prognostic event?
+
+```{r Q4, warning=F}
+# DFS
+coxph(Surv(tdfs,deltadfs)~deltaa,data=bmt) # 0.668
+
+## consider time-varying covariate
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltadfs=event(tdfs,deltadfs),postGVHD=tdc(ta))
+head(bmt.tvc)
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltadfs)
+coxph(s.bmt.tvc~postGVHD,data=bmt.tvc) # 0.413
+
+# relapse
+coxph(Surv(tdfs,deltar)~deltaa,data=bmt)  # 0.345
+
+# death
+coxph(Surv(ts,deltas)~deltaa,data=bmt) # 0.423
+
+## consider time-varying covariate
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltas=event(ts,deltas),postGVHD=tdc(ta))
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltas) 
+coxph(s.bmt.tvc~postGVHD,data=bmt.tvc) # 0.255
+```
+
+**Findings**
+
+GVHD and recovery from platelet might be a time-varying covariate?
+
+Not associated with death, risk of relapse, or composite outcome.
+
+
+## Q5
+Among the patients who develop aGVHD, are any of the measured baseline factors associated with
+differences in disease-free survival?
+
+```{r Q5, warning=F}
+# baseline factors and differences in DFS
+## patient age
+coxph(Surv(tdfs,deltadfs)~age,data=bmt %>% filter(deltaa==1)) %>% confint() %>% exp()
+## patient gender
+coxph(Surv(tdfs,deltadfs)~male,data=bmt %>% filter(deltaa==1))  %>% confint() %>% exp()
+## donor age
+coxph(Surv(tdfs,deltadfs)~donorage,data=bmt %>% filter(deltaa==1)) %>% confint() %>% exp()
+## donor gender
+coxph(Surv(tdfs,deltadfs)~donormale,data=bmt %>% filter(deltaa==1))  %>% confint() %>% exp()
+## patient CMV
+coxph(Surv(tdfs,deltadfs)~cmv,data=bmt %>% filter(deltaa==1)) %>% confint() %>% exp()
+## donor CMV
+coxph(Surv(tdfs,deltadfs)~donorcmv,data=bmt %>% filter(deltaa==1)) %>% confint() %>% exp()
+## the wait time from diagnosis to transplantation
+coxph(Surv(tdfs,deltadfs)~waittime,data=bmt %>% filter(deltaa==1))  %>% confint() %>% exp()
+## disease group
+coxph(Surv(tdfs,deltadfs)~as.factor(disgroup),data=bmt %>% filter(deltaa==1)) %>% confint() %>% exp()  # 0.5537, .0463
+## FAB classification 
+coxph(Surv(tdfs,deltadfs)~fab,data=bmt %>% filter(deltaa==1)) %>% confint() %>% exp() 
+## prophylactic use of methotrexate
+coxph(Surv(tdfs,deltadfs)~mtx,data=bmt %>% filter(deltaa==1))  %>% confint() %>% exp() 
+```
+
+**Findings**
+
+It seems that donor age and disease group are significant.
+
+
+## Prognostic Model Building
+
+```{r prog, warning=F, message=F}
+# disease group + fab
+mod1<-coxph(Surv(tdfs,deltadfs)~as.factor(disgroup)+as.factor(fab),data=bmt) 
+mod1
+# disease group + fab + patient cmv
+mod2<-coxph(Surv(tdfs,deltadfs)~cmv+as.factor(disgroup)+as.factor(fab),data=bmt)
+mod2
+anova(mod1,mod2)
+# disease group + fab + donor cmv
+mod3<-coxph(Surv(tdfs,deltadfs)~donorcmv+as.factor(disgroup)+as.factor(fab),data=bmt)
+anova(mod1,mod3)
+# disease group + fab + aGVHD
+mod4<-coxph(Surv(tdfs,deltadfs)~deltaa+as.factor(disgroup)+as.factor(fab),data=bmt)
+mod4
+
+# include aGVHD as time-varying covariate
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltadfs=event(tdfs,deltadfs),postGVHD=tdc(ta))
+head(bmt.tvc)
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltadfs)
+mod5<-coxph(s.bmt.tvc~postGVHD+as.factor(disgroup)+as.factor(fab),data=bmt.tvc) # p=0.313
+mod5
+# further include interaction with donor age
+## mod6<-coxph(s.bmt.tvc~postGVHD*donorage+as.factor(disgroup)+as.factor(fab),data=bmt.tvc)
+## mod6
+## anova(mod5,mod6)
+
+# include mtx
+## mod7<-coxph(s.bmt.tvc~postGVHD*donorage+as.factor(disgroup)+as.factor(fab)+deltap,data=bmt.tvc)
+## mod7 
+## anova(mod6,mod7)
+
+# further include recovery of platelet as time-varying covariate
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltadfs=event(tdfs,deltadfs),postGVHD=tdc(ta),postPlat=tdc(tp))
+head(bmt.tvc)
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltadfs)
+mod5<-coxph(s.bmt.tvc~postGVHD+postPlat+as.factor(disgroup)+as.factor(fab)+strata(as.factor(hospital)),data=bmt.tvc) # p=0.313
+mod5
+confint.default(mod5) %>% exp()
+
+# include interaction between donor age and aGVHD
+mod6<-coxph(s.bmt.tvc~postGVHD*donorage+postPlat+as.factor(disgroup)+as.factor(fab)+strata(as.factor(hospital)),data=bmt.tvc) # p=0.313
+mod6
+confint.default(mod6) %>% exp()
+anova(mod5,mod6)
+
+# stratifying by hospital center
+mod7<-coxph(s.bmt.tvc~postGVHD*donorage+postPlat+as.factor(disgroup)+as.factor(fab)+strata(as.factor(hospital)),data=bmt.tvc)
+mod7
+anova(mod6,mod7)
+
+# test of PH assumptions
+cox.zph(mod5)
+cox.zph(mod6)
+
+zp<-cox.zph(mod6,transform=function(time)time)
+zp
+par(mfrow=c(2,3))
+for(i in 1:6){
+  plot(zp[i])
+  abline(0,0,col="blue",lty=3)
+}
+
+## log-log plots for categorical vars
+plot(survfit(Surv(tdfs,deltadfs)~as.factor(disgroup),data=bmt),fun="cloglog")
+plot(survfit(Surv(tdfs,deltadfs)~as.factor(fab),data=bmt),fun="cloglog")
+```
+
+**Findings**
+
+Final model 1: DFS~disease group+FAB+aGVHD (time-varying) + platelet (time-varying)
+Final model 2: DFS~disease group+FAB+aGVHD (time-varying)*donor age+ platelet (time-varying)
+
+
+## Parametric models
+
+```{r aft, warning=F, message=F}
+weibullph<-flexsurvreg(Surv(tdfs,deltadfs)~deltaa*donorage+deltap+as.factor(disgroup)+as.factor(fab),data=bmt,dist="weibullph")
+weibullph
+
+# compare different model fits
+fitweibull<-flexsurvreg(Surv(tdfs,deltadfs)~deltaa*donorage+deltap+as.factor(disgroup)+as.factor(fab),data=bmt,dist="weibull")
+fitggamma<-flexsurvreg(Surv(tdfs,deltadfs)~deltaa*donorage+deltap+as.factor(disgroup)+as.factor(fab),data=bmt,dist="gengamma")
+fitexp<-flexsurvreg(Surv(tdfs,deltadfs)~deltaa*donorage+deltap+as.factor(disgroup)+as.factor(fab),data=bmt，dist="exp")
+
+plot(survfit(Surv(tdfs,deltadfs)~1, data=bmt), conf.int=FALSE,mark.time=FALSE,
+xlim=c(0,1100), xaxt='n', cex.axis=1.5, cex.lab=1.5,
+xlab="Time (in days)",ylab="Disease-free survival",lwd=1.5)
+axis(1,at=seq(0,1100,by=300),labels=seq(0,1100,by=300),cex.axis=1.5)
+lines(fitweibull,col=4,ci=FALSE,lwd=1.8,lty=3)
+lines(fitggamma,col=3,ci=FALSE,lwd=1.8,lty=3)
+lines(fitexp,col=2,ci=FALSE,lwd=1.8,lty=3)
+legend("bottomleft",legend=c("exponential distribution","Weibull distribution",
+"generalized gamma distribution",
+"nonparametric estimator"),fill=c(2,4,3),cex=0.8)
+```
+
+
+

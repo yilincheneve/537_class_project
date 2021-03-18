@@ -1,0 +1,279 @@
+---
+title: "537_project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=F)
+library(tinytex)
+library(flexsurv)
+library(survival)
+#library(ComparisonSurv)
+library(dplyr)
+#library(pander)
+#library(sjPlot)
+library(msm)
+library(survMisc)
+
+```
+
+Q3(For table 2)
+```{r}
+bmt <- read.csv("bmt-2.csv")
+head(bmt)
+summary(coxph(Surv(tdfs,deltadfs)~age,data=bmt)) # 0.338
+summary(coxph(Surv(tdfs,deltar)~age,data=bmt)) 
+## patient gender
+summary(coxph(Surv(tdfs,deltadfs)~male,data=bmt)) # 0.301
+summary(coxph(Surv(tdfs,deltar)~male,data=bmt))
+## donor age
+summary(coxph(Surv(tdfs,deltadfs)~donorage,data=bmt)) # 0.252
+summary(coxph(Surv(tdfs,deltar)~donorage,data=bmt))
+## donor gender
+summary(coxph(Surv(tdfs,deltadfs)~donormale,data=bmt)) # 0.97
+summary(coxph(Surv(tdfs,deltar)~donormale,data=bmt))
+## patient CMV
+summary(coxph(Surv(tdfs,deltadfs)~cmv,data=bmt))
+summary(coxph(Surv(tdfs,deltar)~cmv,data=bmt))# 0.482
+## donor CMV
+summary(coxph(Surv(tdfs,deltadfs)~donorcmv,data=bmt)) # 0.836
+summary(coxph(Surv(tdfs,deltar)~donorcmv,data=bmt))
+## the wait time from diagnosis to transplantation
+summary(coxph(Surv(tdfs,deltadfs)~waittime,data=bmt))# 0.791
+summary(coxph(Surv(tdfs,deltar)~waittime,data=bmt))
+## disease group
+summary(coxph(Surv(tdfs,deltadfs)~as.factor(disgroup),data=bmt))# 0.0457, 0.1516
+summary(coxph(Surv(tdfs,deltar)~as.factor(disgroup),data=bmt))
+## FAB classification 
+summary(coxph(Surv(tdfs,deltadfs)~fab,data=bmt)) # 0.00427
+summary(coxph(Surv(tdfs,deltar)~fab,data=bmt))
+## prophylactic use of methotrexate
+summary(coxph(Surv(tdfs,deltadfs)~mtx,data=bmt))
+summary(coxph(Surv(tdfs,deltar)~mtx,data=bmt))# 0.0944
+## hospital center
+summary(coxph(Surv(tdfs,deltadfs)~as.factor(hospital),data=bmt)) 
+summary(coxph(Surv(tdfs,deltar)~as.factor(hospital),data=bmt))
+
+###aGVHD time-varying
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltadfs=event(tdfs,deltadfs),postGVHD=tdc(ta))
+head(bmt.tvc)
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltadfs)
+summary(coxph(s.bmt.tvc~postGVHD ,data=bmt.tvc))
+
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltadfs=event(tdfs,deltar),postGVHD=tdc(ta))
+head(bmt.tvc)
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltar)
+summary(coxph(s.bmt.tvc~postGVHD ,data=bmt.tvc))
+
+
+### normal platelet levels
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltadfs=event(tdfs,deltadfs),postplat=tdc(tp))
+head(bmt.tvc)
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltadfs)
+summary(coxph(s.bmt.tvc~postplat,data=bmt.tvc))
+
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltadfs=event(tdfs,deltar),postplat=tdc(tp))
+head(bmt.tvc)
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltar)
+summary(coxph(s.bmt.tvc~postplat,data=bmt.tvc))
+```
+
+
+
+KM for disgroup
+```{r}
+km.bmt.dg = survfit(Surv(tdfs, deltadfs) ~ as.factor(disgroup), data = bmt, conf.type = "log-log" )
+plot(km.bmt.dg,col = c("blue", "orange", "red"), lwd = 2,  xlab = "Analysis time(days)", main = "KM estimates for disgroup", cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+legend("topright", c("disgroup = ALL", "disgroup = AML low", "disgroup = AML high"), col = c("blue", "orange", "red"), lwd = c(2,2), cex = 1.2)
+
+#legend("topright", legend =c("Donor -20, Patient 0","Donor -10, Patient 0", "Donor 0, Patient 0", "Donor 10, Patient 0","Donor 20, Patient 0"), col =c("blue", "blue","black", "red", "red"), lwd =c(1, 2, 3, 2, 1),lty =c(3, 3, 1, 2, 2), cex = 0.4, bty = "n")
+```
+Coxph for disgroup
+```{r}
+coxph.bmt.dg = coxph(Surv(tdfs,deltadfs) ~ as.factor(disgroup), data=bmt)
+profile1 =data.frame(disgroup = as.factor(1))
+profile2 =data.frame(disgroup = as.factor(2))
+profile3 =data.frame(disgroup = as.factor(3))
+plot(survfit(coxph.bmt.dg, newdata = profile1, conf.int = 0),col = "blue", lwd = 2,  xlab = "Time (days)",ylab = "Survival",main = "coxph estimates for disgroup", cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+lines(survfit(coxph.bmt.dg, newdata = profile2, conf.int = 0),col = "orange", lwd = 2)
+lines(survfit(coxph.bmt.dg, newdata = profile3, conf.int = 0),col = "red", lwd = 2)
+legend("topright", c("disgroup = ALL", "disgroup = AML low", "disgroup = AML high"), col = c("blue", "orange", "red"), lwd = c(2,2,2), cex = 1.2)
+```
+
+```{r}
+km.bmt.fab = survfit(Surv(tdfs, deltadfs) ~ fab, data = bmt, conf.type = "log-log")
+plot(km.bmt.fab, col = c("blue", "orange"), lwd = 2, xlab = "Analysis time(days)", main = "KM estimates for fab", cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+legend("topright", c("Fab = grade 4 or 5 and AML", "Fab = otherwise"), col = c("blue", "orange"), lwd = c(2,2), cex = 1.2)
+
+```
+
+```{r}
+coxph.bmt.fab = coxph(Surv(tdfs,deltadfs) ~ fab, data=bmt)
+profile1 =data.frame(fab = 0)
+profile2 =data.frame(fab = 1)
+plot(survfit(coxph.bmt.fab, newdata = profile1, conf.int = 0),col = "blue", lwd = 2,  xlab = "Time (days)",ylab = "Survival",main = "coxph estimates for fab" ,cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+lines(survfit(coxph.bmt.fab, newdata = profile2, conf.int = 0),col = "orange", lwd = 2)
+legend("topright", c("Fab = grade 4 or 5 and AML", "Fab = otherwise"), col = c("blue", "orange"), lwd = c(2,2), cex = 1.2)
+```
+
+Q6
+
+
+adjusting for age
+```{r}
+fit_mtx_exp<- flexsurvreg(Surv(ta, deltaa) ~ age + mtx, data = bmt, dist = "exponential")
+fit_mtx_wb <- flexsurvreg(Surv(ta, deltaa) ~ age + mtx, data = bmt, dist = "weibull")
+fit_mtx_gg<- flexsurvreg(Surv(ta, deltaa) ~ age + mtx, data = bmt, dist = "gengamma")
+
+##log ratio test for simplification
+T_LRT <- -2*(fit_mtx_exp$loglik - fit_mtx_wb$loglik)
+1- pchisq(T_LRT, df = 1)
+
+T_LRT <- -2*(fit_mtx_wb$loglik - fit_mtx_gg$loglik)
+1- pchisq(T_LRT, df = 1)
+
+###gengamma is the best
+
+###wald test for significance
+ggres <- fit_mtx_gg$res
+ggres.wald <- ggres[,1]/ggres[,4]
+2*pnorm(-abs(ggres.wald))
+
+###mtx is significant
+
+#coxph(Surv(ta, deltaa) ~ mtx + age , data = bmt, ties = "exact")
+
+
+
+profile1 =data.frame(mtx = 0, age = 20)
+profile2 =data.frame(mtx = 0, age = 40)
+profile3 =data.frame(mtx = 1, age = 20)
+profile4 =data.frame(mtx = 1, age = 40)
+
+
+plot(fit_mtx_gg, newdata = profile1, col = "red", lwd = 2, lty = 1, xlab = "Time (days)", ci = FALSE, lwd.obs = 1, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+lines(fit_mtx_gg, newdata = profile2, col = "blue",lwd = 2, lty = 1, ci = FALSE)
+lines(fit_mtx_gg, newdata = profile3, col = "red",lwd = 2, lty = 2, ci = FALSE)
+lines(fit_mtx_gg, newdata = profile4, col = "blue",lwd = 2, lty = 2, ci = FALSE)
+
+legend("bottomright", legend =c("non-parametric","mtx=0 Age=20", "mtx=0 Age=40", "mtx=1 Age=20", "mtx=1 Age=40"), col =c("black","red", "blue", "red", "blue"), lty =c(1,1, 1, 2, 2), lwd =c(1,2,2,2,2), cex = 1, bty = "n")
+```
+
+adjusting for age and disgroup
+```{r}
+fit_mtx_exp<- flexsurvreg(Surv(ta, deltaa) ~ age + mtx + as.factor(disgroup), data = bmt, dist = "exponential")
+fit_mtx_wb <- flexsurvreg(Surv(ta, deltaa) ~ age + mtx + as.factor(disgroup), data = bmt, dist = "weibull")
+fit_mtx_gg<- flexsurvreg(Surv(ta, deltaa) ~ age + mtx + as.factor(disgroup), data = bmt, dist = "gengamma")
+### warning : Optimisation has probably not converged to the maximum likelihood - Hessian is not positive definite. So I don't consider gengamma here
+
+
+T_LRT <- -2*(fit_mtx_exp$loglik - fit_mtx_wb$loglik)
+1- pchisq(T_LRT, df = 1)
+
+###so weibull is better than exponential model
+fit_mtx_wb
+
+###Wald test for significance
+wbres <- fit_mtx_wb$res
+wbres.wald <- wbres[,1]/wbres[,4]
+2*pnorm(-abs(wbres.wald))
+##mtx not significant
+
+summary(bmt$disgroup)
+profile1 =data.frame(mtx = 0, age = 20, disgroup = as.factor(1))
+profile2 =data.frame(mtx = 0, age = 40, disgroup = as.factor(1))
+profile3 =data.frame(mtx = 1, age = 20, disgroup = as.factor(1))
+profile4 =data.frame(mtx = 1, age = 40, disgroup = as.factor(1))
+
+
+plot(fit_mtx_wb, newdata = profile1, col = "red", lwd = 2, lty = 1, xlab = "Time (days)",main = "Disgroup = 1", ci = FALSE, lwd.obs = 1, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+lines(fit_mtx_wb, newdata = profile2, col = "blue",lwd = 2, lty = 1, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile3, col = "red",lwd = 2, lty = 2, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile4, col = "blue",lwd = 2, lty = 2, ci = FALSE)
+
+legend("bottomright", legend =c("non-parametric","mtx=0 Age=20", "mtx=0 Age=40", "mtx=1 Age=20", "mtx=1 Age=40"), col =c("black","red", "blue", "red", "blue"), lty =c(1,1, 1, 2, 2), lwd =c(1,2,2,2,2), cex = 1, bty = "n")
+```
+
+```{r}
+profile1 =data.frame(mtx = 0, age = 20, disgroup = as.factor(2))
+profile2 =data.frame(mtx = 0, age = 40, disgroup = as.factor(2))
+profile3 =data.frame(mtx = 1, age = 20, disgroup = as.factor(2))
+profile4 =data.frame(mtx = 1, age = 40, disgroup = as.factor(2))
+
+
+plot(fit_mtx_wb, newdata = profile1, col = "red", lwd = 2, lty = 1, xlab = "Time (days)", ci = FALSE, lwd.obs = 1, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5, main = "Disgroup = 2")
+lines(fit_mtx_wb, newdata = profile2, col = "blue",lwd = 2, lty = 1, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile3, col = "red",lwd = 2, lty = 2, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile4, col = "blue",lwd = 2, lty = 2, ci = FALSE)
+
+legend("bottomright", legend =c("non-parametric","mtx=0 Age=20", "mtx=0 Age=40", "mtx=1 Age=20", "mtx=1 Age=40"), col =c("black","red", "blue", "red", "blue"), lty =c(1,1, 1, 2, 2), lwd =c(1,2,2,2,2), cex = 1, bty = "n")
+```
+
+
+```{r}
+profile1 =data.frame(mtx = 0, age = 20, disgroup = as.factor(3))
+profile2 =data.frame(mtx = 0, age = 40, disgroup = as.factor(3))
+profile3 =data.frame(mtx = 1, age = 20, disgroup = as.factor(3))
+profile4 =data.frame(mtx = 1, age = 40, disgroup = as.factor(3))
+
+
+plot(fit_mtx_wb, newdata = profile1, col = "red", lwd = 2, lty = 1, xlab = "Time (days)", ci = FALSE, lwd.obs = 1, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5, main = "Disgroup = 3")
+lines(fit_mtx_wb, newdata = profile2, col = "blue",lwd = 2, lty = 1, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile3, col = "red",lwd = 2, lty = 2, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile4, col = "blue",lwd = 2, lty = 2, ci = FALSE)
+
+legend("bottomright", legend =c("non-parametric","mtx=0 Age=20", "mtx=0 Age=40", "mtx=1 Age=20", "mtx=1 Age=40"), col =c("black","red", "blue", "red", "blue"), lty =c(1,1, 1, 2, 2), lwd =c(1,2,2,2,2), cex = 1, bty = "n")
+```
+
+```{r}
+profile1 =data.frame(mtx = 0, age = 20, disgroup = as.factor(1))
+profile2 =data.frame(mtx = 1, age = 20, disgroup = as.factor(1))
+profile3 =data.frame(mtx = 0, age = 20, disgroup = as.factor(2))
+profile4 =data.frame(mtx = 1, age = 20, disgroup = as.factor(2))
+profile5 =data.frame(mtx = 0, age = 20, disgroup = as.factor(3))
+profile6 =data.frame(mtx = 1, age = 20, disgroup = as.factor(3))
+
+plot(fit_mtx_wb, newdata = profile1, col = "red", lwd = 2, lty = 1, xlab = "Time (days)", ci = FALSE, lwd.obs = 1, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5, main = "Age = 20")
+lines(fit_mtx_wb, newdata = profile2, col = "red",lwd = 2, lty = 2, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile3, col = "blue",lwd = 2, lty = 1, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile4, col = "blue",lwd = 2, lty = 2, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile5, col = "green",lwd = 2, lty = 1, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile6, col = "green",lwd = 2, lty = 2, ci = FALSE)
+
+legend("bottomright", legend =c("non-parametric","mtx=0 disgroup = 1", "mtx=1 disgroup = 1", "mtx=0 disgroup = 2","mtx=1 disgroup = 2", "mtx=0 disgroup = 3", "mtx=1 disgroup = 3" ), col =c("black","red","red","blue","blue", "green","green"), lty =c(1,2, 1, 2, 1, 2), lwd =c(1,2,2,2, 2, 2), cex = 1, bty = "n")
+```
+
+```{r}
+profile1 =data.frame(mtx = 0, age = 40, disgroup = as.factor(1))
+profile2 =data.frame(mtx = 1, age = 40, disgroup = as.factor(1))
+profile3 =data.frame(mtx = 0, age = 40, disgroup = as.factor(2))
+profile4 =data.frame(mtx = 1, age = 40, disgroup = as.factor(2))
+profile5 =data.frame(mtx = 0, age = 40, disgroup = as.factor(3))
+profile6 =data.frame(mtx = 1, age = 40, disgroup = as.factor(3))
+
+plot(fit_mtx_wb, newdata = profile1, col = "red", lwd = 2, lty = 1, xlab = "Time (days)", ci = FALSE, lwd.obs = 1, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5, main = "Age = 40")
+lines(fit_mtx_wb, newdata = profile2, col = "red",lwd = 2, lty = 2, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile3, col = "blue",lwd = 2, lty = 1, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile4, col = "blue",lwd = 2, lty = 2, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile5, col = "green",lwd = 2, lty = 1, ci = FALSE)
+lines(fit_mtx_wb, newdata = profile6, col = "green",lwd = 2, lty = 2, ci = FALSE)
+
+legend("bottomright", legend =c("non-parametric","mtx=0 disgroup = 1", "mtx=1 disgroup = 1", "mtx=0 disgroup = 2","mtx=1 disgroup = 2", "mtx=0 disgroup = 3", "mtx=1 disgroup = 3" ), col =c("black","red","red","blue","blue", "green","green"), lty =c(1,2, 1, 2, 1, 2), lwd =c(1,2,2,2, 2, 2), cex = 1, bty = "n")
+```
+
+
+
+Q7
+```{r}
+bmt.tvc <- tmerge(data1=bmt,data2=bmt,id=id,deltadfs=event(tdfs,deltadfs),postpt=tdc(tp))
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltadfs)
+coxph(s.bmt.tvc~postpt + fab + as.factor(disgroup),data=bmt.tvc)
+
+```
+
+```{r}
+bmt.tvc=tmerge(data1=bmt,data2=bmt,id=id,deltas=event(tdfs,deltar),postpt=tdc(tp))
+s.bmt.tvc<-Surv(bmt.tvc$tstart,bmt.tvc$tstop,bmt.tvc$deltar) 
+coxph(s.bmt.tvc~postpt,data=bmt.tvc) 
+```
+
